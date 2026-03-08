@@ -1,0 +1,135 @@
+.chat-box {
+  height: 75vh;
+  position: relative;
+  background-color: #f1f5ff;
+}
+.chat-user {
+  padding: 10px 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #c6c6c6;
+}
+.chat-user img {
+  width: 25px;
+  border-radius: 50%;
+}
+.chat-user img:first-child {
+  width: 38px;
+  aspect-ratio: 1/1;
+}
+.chat-user p {
+  flex: 1;
+  font-weight: 500;
+  font-size: 20px;
+  color: #393939;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.chat-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 15px;
+  position: absolute;
+  background-color: white;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+.chat-input > img {
+  width: 25px;
+  cursor: pointer;
+}
+.chat-input label {
+  display: flex;
+}
+.chat-input label img {
+  width: 18px;
+}
+.chat-input input {
+  flex: 1;
+  border: none;
+  outline: none;
+}
+.chat-msg {
+  height: calc(100% - 70px);
+  overflow-y: scroll;
+  padding-bottom: 50px;
+  display: flex;
+  flex-direction: column;
+}
+.s-msg,
+.r-msg {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 5px 15px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.s-msg {
+  justify-content: flex-end;
+}
+.r-msg {
+  justify-content: flex-start;
+}
+.s-msg .msg,
+.r-msg .msg {
+  max-width: 70%;
+  padding: 10px 15px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.s-msg .msg {
+  background-color: #007bff;
+  color: white;
+  border-bottom-right-radius: 0;
+}
+.r-msg .msg {
+  background-color: #007bff;
+  color: white;
+  border: 1px solid #e0e0e0;
+  border-bottom-left-radius: 0;
+}
+.s-msg .icon,
+.r-msg .icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.s-msg p:last-child,
+.r-msg p:last-child {
+  font-size: 12px;
+  color: #888;
+  min-width: 50px;
+}
+.msg {
+  color: white;
+  background-color: #007bff;
+  padding: 8px;
+  max-width: 200px;
+  font-size: 11px;
+  font-weight: 300;
+  border-radius: 8px 8px 0px 8px;
+  margin-bottom: 30px;
+}
+.r-msg .msg {
+  border-radius: 8px 8px 8px 0px;
+}
+.s-msg div,
+.r-msg div {
+  text-align: center;
+  font-size: 9px;
+}
+.msg-image {
+  max-width: 230px;
+  margin-bottom: 30px;
+  border-radius: 10px;
+}
