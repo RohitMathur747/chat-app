@@ -39,6 +39,9 @@
   font-size: 11px;
   width: 100%;
 }
+.ls-search input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
 .ls-list {
   display: flex;
   flex-direction: column;
@@ -46,6 +49,22 @@
   margin-top: 20px;
   overflow-y: auto;
   max-height: calc(75vh - 150px);
+  scrollbar-width: thin;
+  scrollbar-color: #002670 #001030;
+}
+
+/* Custom Scrollbar Styling for WebKit browsers */
+.ls-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ls-list::-webkit-scrollbar-track {
+  background: #001030;
+}
+
+.ls-list::-webkit-scrollbar-thumb {
+  background-color: #002670;
+  border-radius: 10px;
 }
 .friends,
 .groups {
@@ -70,6 +89,7 @@
 }
 .friends div {
   flex: 1;
+  min-width: 0;
 }
 .friends p {
   margin: 0;
@@ -81,4 +101,44 @@
   color: #888;
   display: block;
   margin-top: 2px;
+}
+.ls-nav .menu {
+  position: relative;
+  padding: 10px 0px;
+  cursor: pointer;
+}
+.ls-nav .menu:hover > img {
+  opacity: 1;
+}
+.menu .sub-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 150px;
+  background-color: white;
+  color: black;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+.sub-menu hr {
+  border: none;
+  height: 1px;
+  background: #e0e0e0;
+  margin: 10px 0;
+}
+.sub-menu p {
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 5px;
+  transition: background-color 0.2s ease;
+}
+.sub-menu p:hover {
+  background-color: #f0f0f0;
+}
+.menu:hover .sub-menu {
+  display: block;
 }
