@@ -1,7 +1,17 @@
 import React from "react";
 import "./RightSideBar.css";
 import assets from "../../assets/assets";
+import { logout } from "../../config/firebase";
+import { useNavigate } from "react-router-dom";
+
 const RightSideBar = () => {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
+
   return (
     <>
       <div className="rs">
@@ -26,7 +36,7 @@ const RightSideBar = () => {
             <img src={assets.pic2} alt="" />
           </div>
         </div>
-        <button>Logout</button>
+        <button onClick={handleLogout}>Logout</button>
       </div>
     </>
   );
