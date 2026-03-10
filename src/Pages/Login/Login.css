@@ -65,3 +65,7 @@
   color: #077efe;
   cursor: pointer;
 }
+
+.login-hidden {
+  display: none;
+}
