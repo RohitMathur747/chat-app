@@ -1,8 +1,25 @@
 import React from "react";
 import "./LeftSideBar.css";
 import assets from "../../assets/assets";
+import { useNavigate } from "react-router-dom";
+import { logout } from "../../config/firebase";
 
 const LeftSideBar = () => {
+  const navigate = useNavigate();
+
+  const handleEditProfile = () => {
+    navigate("/profile");
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   return (
     <div className="ls">
       <div className="ls-top">
@@ -11,9 +28,9 @@ const LeftSideBar = () => {
           <div className="menu">
             <img src={assets.menu_icon} alt="menu" className="menu-icon" />
             <div className="sub-menu">
-              <p>Edit Profile</p>
+              <p onClick={handleEditProfile}>Edit Profile</p>
               <hr />
-              <p>Logout</p>
+              <p onClick={handleLogout}>Logout</p>
             </div>
           </div>
         </div>

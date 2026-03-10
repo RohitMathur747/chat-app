@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useContext } from "react";
 import { Route, Routes, useNavigate } from "react-router-dom";
 import Login from "./Pages/Login/Login";
 import Chat from "./Pages/Chat/Chat";
@@ -7,16 +7,19 @@ import "./index.css";
 import { ToastContainer } from "react-toastify";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./config/firebase";
+import { AppContext } from "./Context/AppContext";
 
 const App = () => {
   const navigate = useNavigate();
+  const { loadUserData } = useContext(AppContext);
 
   useEffect(() => {
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (user) {
         // User is signed in, navigate to chat page
         navigate("/chat");
-        console.log("User is signed in:", user);
+        //console.log("User is signed in:", user);
+        await loadUserData(user.uid);
       } else {
         // User is signed out, navigate to login page
         navigate("/");
