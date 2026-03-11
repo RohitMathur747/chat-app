@@ -3,38 +3,55 @@ import {
   ref,
   uploadBytesResumable,
   getDownloadURL,
-  resolveConfig,
 } from "firebase/storage";
+import { toast } from "react-toastify";
 
 const uploadFile = async (file) => {
-  const storage = getStorage();
-  const storageRef = ref(storage, `images/${Date.now() + file.name}`);
+  return new Promise((resolve, reject) => {
+    const storage = getStorage();
+    const fileName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+    const storageRef = ref(storage, `images/${fileName}`);
 
-  const uploadTask = uploadBytesResumable(storageRef, file);
+    // Set custom metadata for the upload
+    const metadata = {
+      contentType: file.type || "image/jpeg",
+    };
 
-  uploadTask.on(
-    "state_changed",
-    (snapshot) => {
-      const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-      console.log("Upload is " + progress + "% done");
-      switch (snapshot.state) {
-        case "paused":
-          console.log("Upload is paused");
-          break;
-        case "running":
-          console.log("Upload is running");
-          break;
-      }
-    },
-    (error) => {
-      console.error("Error uploading file:", error);
-    },
-    () => {
-      getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-        resolveConfig(downloadURL);
-      });
-    },
-  );
+    const uploadTask = uploadBytesResumable(storageRef, file, metadata);
+
+    return new Promise((resolve, reject) => {
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log("Upload is " + progress + "% done");
+        },
+        (error) => {
+          console.error("Error uploading file:", error);
+
+          // If CORS error, try alternative upload method
+          if (
+            error.code === "storage/cors-unsupported" ||
+            error.message?.includes("CORS")
+          ) {
+            reject(
+              new Error(
+                "CORS error: Please configure CORS in Google Cloud Console. See: https://console.cloud.google.com/storage/browser/chat-app-gs-434f4.firebasestorage.app/permissions",
+              ),
+            );
+          }
+          toast.error("Error uploading file.");
+          reject(error);
+        },
+        () => {
+          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+            resolve(downloadURL);
+          });
+        },
+      );
+    });
+  });
 };
 
 export default uploadFile;

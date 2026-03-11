@@ -3,8 +3,10 @@ import "./Login.css";
 import assets from "../../assets/assets";
 import { signup, login } from "../../config/firebase";
 import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
+  const navigate = useNavigate();
   const [currState, setCurrState] = useState("Sign Up");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -19,8 +21,10 @@ const Login = () => {
     try {
       if (currState === "Sign Up") {
         await signup(username, email, password);
+        navigate("/profile");
       } else {
         await login(email, password);
+        navigate("/chat");
       }
     } catch (error) {
       toast.error(error.message);

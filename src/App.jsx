@@ -16,9 +16,8 @@ const App = () => {
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // User is signed in, navigate to chat page
-        navigate("/chat");
-        //console.log("User is signed in:", user);
+        // User is signed in, load user data and navigate based on profile completion
+        // console.log("User is signed in:", user);
         await loadUserData(user.uid);
       } else {
         // User is signed out, navigate to login page

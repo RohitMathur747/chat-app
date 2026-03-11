@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import "./ProfileUpdate.css";
 import assets from "../../assets/assets";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../../config/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import upload from "../../lib/upload";
+import { AppContext } from "../../Context/AppContext";
 
 const ProfileUpdate = () => {
   const navigate = useNavigate();
@@ -13,6 +16,43 @@ const ProfileUpdate = () => {
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
   const [uid, setUid] = useState("");
+  const [prevImage, setPrevImage] = useState("");
+  const { setUserData } = useContext(AppContext);
+
+  const ProfileUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      if (!prevImage && !image) {
+        toast.error("Upload a profile image");
+        return;
+      }
+      const docRef = doc(db, "users", uid);
+      if (image) {
+        const imgUrl = await upload(image);
+        setPrevImage(imgUrl);
+        await updateDoc(docRef, {
+          name,
+          bio,
+          avatar: imgUrl,
+        });
+        toast.success("Profile updated successfully");
+        navigate("/chat");
+      } else {
+        await updateDoc(docRef, {
+          name,
+          bio,
+        });
+        toast.success("Profile updated successfully");
+        navigate("/chat");
+      }
+      const snap = await getDoc(docRef);
+      setUserData(snap.data());
+      navigate("/chat");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error(error.message);
+    }
+  };
 
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
@@ -46,7 +86,7 @@ const ProfileUpdate = () => {
     <>
       <div className="profile">
         <div className="profile-container">
-          <form>
+          <form onSubmit={ProfileUpdate}>
             <h3>Profile Details</h3>
             <label htmlFor="avatar">
               <input
@@ -58,7 +98,13 @@ const ProfileUpdate = () => {
                 hidden
               />
               <img
-                src={image ? URL.createObjectURL(image) : assets.avatar_icon}
+                src={
+                  image
+                    ? URL.createObjectURL(image)
+                    : prevImage
+                      ? prevImage
+                      : assets.avatar_icon
+                }
                 alt=""
               />
               Upload Profile Image
