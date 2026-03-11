@@ -7,9 +7,14 @@ import { logout } from "../../config/firebase";
 const LeftSideBar = () => {
   const navigate = useNavigate();
 
-  const handleEditProfile = () => {
-    navigate("/profile");
+  const inputHandler = async (e) => {
+    try {
+    } catch (error) {}
   };
+
+  // const handleEditProfile = () => {
+  //   navigate("/profile");
+  // };
 
   const handleLogout = async () => {
     try {
@@ -28,7 +33,7 @@ const LeftSideBar = () => {
           <div className="menu">
             <img src={assets.menu_icon} alt="menu" className="menu-icon" />
             <div className="sub-menu">
-              <p onClick={handleEditProfile}>Edit Profile</p>
+              <p onClick={() => navigate("/profile")}>Edit Profile</p>
               <hr />
               <p onClick={handleLogout}>Logout</p>
             </div>
@@ -38,6 +43,7 @@ const LeftSideBar = () => {
           <img src={assets.search_icon} alt="search" className="search-icon" />
           <input
             type="text"
+            onChange={inputHandler}
             placeholder="Search Here.."
             className="search-input"
           />
