@@ -3,13 +3,56 @@ import "./LeftSideBar.css";
 import assets from "../../assets/assets";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../../config/firebase";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "../../config/firebase";
+import { useState } from "react";
+import { useContext } from "react";
+import { AppContext } from "../../Context/AppContext";
+import { toast } from "react-toastify";
+import { arrayUnion } from "firebase/firestore";
 
 const LeftSideBar = () => {
   const navigate = useNavigate();
+  const { userData, chatData } = useContext(AppContext);
+  const [user, setUser] = useState(null);
+  const [showSearch, setShowSearch] = useState(false);
 
   const inputHandler = async (e) => {
     try {
-    } catch (error) {}
+      const input = e.target.value;
+      if (input) {
+        setShowSearch(true);
+        const userRef = collection(db, "users");
+        const q = query(userRef, where("name", "==", input.toLowerCase()));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty && querySnapshot.docs[0].id !== userData.uid) {
+          let userExists = false;
+          chatData.map((user) => {
+            if (user.rId === querySnapshot.docs[0].data().id) {
+              userExists = true;
+            }
+          });
+          if (!userExists) {
+            setUser(querySnapshot.docs[0].data());
+          }
+        } else {
+          setUser(null);
+        }
+      } else {
+        setShowSearch(false);
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+    }
   };
 
   // const handleEditProfile = () => {
@@ -23,6 +66,45 @@ const LeftSideBar = () => {
     } catch (error) {
       console.error("Logout error:", error);
     }
+  };
+
+  const addChat = async () => {
+    const messagesRef = collection(db, "messages");
+    const chatsRef = collection(db, "chats");
+    try {
+      const newMessageRef = doc(messagesRef);
+      await setDoc(newMessageRef, {
+        createAt: serverTimestamp(),
+        messages: [],
+      });
+
+      await updateDoc(doc(chatsRef, user.id), {
+        chatData: arrayUnion({
+          messageId: newMessageRef.id,
+          lastMessage: "",
+          rId: userData.id,
+          updatedAt: Date.now(),
+          messageSeen: true,
+        }),
+      });
+
+      await updateDoc(doc(chatsRef, userData.uid), {
+        chatData: arrayUnion({
+          messageId: newMessageRef.id,
+          lastMessage: "",
+          rId: user.id,
+          updatedAt: Date.now(),
+          messageSeen: true,
+        }),
+      });
+    } catch (error) {
+      toast.error(error.message);
+      console.error(error);
+    }
+  };
+
+  const setChat = async (item) => {
+    console.log(item);
   };
 
   return (
@@ -50,17 +132,24 @@ const LeftSideBar = () => {
         </div>
       </div>
       <div className="ls-list">
-        {Array(12)
-          .fill("")
-          .map((item, index) => (
-            <div className="friends" key={index}>
-              <img src={assets.profile_img} alt="friends" className="icon" />
+        {!chatData ? (
+          <div className="loading">Loading chats...</div>
+        ) : showSearch && user ? (
+          <div onClick={addChat} className="friends add-user">
+            <img src={user.avatar} alt="friends" className="icon" />
+            <p>{user.name}</p>
+          </div>
+        ) : (
+          chatData.map((item, index) => (
+            <div onClick={() => setChat(item)} className="friends" key={index}>
+              <img src={item.userData.avatar} alt="friends" className="icon" />
               <div>
-                <p>Richard Sanford</p>
-                <span>Hello How are You?</span>
+                <p>{item.userData.name}</p>
+                <span>{item.lastMessage}</span>
               </div>
             </div>
-          ))}
+          ))
+        )}
       </div>
     </div>
   );
