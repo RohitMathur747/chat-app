@@ -22,7 +22,14 @@ import { arrayUnion } from "firebase/firestore";
 
 const LeftSideBar = () => {
   const navigate = useNavigate();
-  const { userData, chatData } = useContext(AppContext);
+  const {
+    userData,
+    chatData,
+    chatUser,
+    setChatUser,
+    setMessagesId,
+    messagesId,
+  } = useContext(AppContext);
   const [user, setUser] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
 
@@ -104,7 +111,8 @@ const LeftSideBar = () => {
   };
 
   const setChat = async (item) => {
-    console.log(item);
+    setMessagesId(item.messageId);
+    setChatUser(item);
   };
 
   return (

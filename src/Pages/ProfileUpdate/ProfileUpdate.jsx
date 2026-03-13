@@ -55,31 +55,29 @@ const ProfileUpdate = () => {
   };
 
   useEffect(() => {
-    onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // User is signed in, navigate to chat page
         console.log("User is signed in:", user);
         setUid(user.uid);
-        const docRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.name) {
-            setName(data.name);
+        // Removed duplicate getDoc - AppContext handles loadUserData
+        // Load local data only if exists (rules still needed)
+        try {
+          const docRef = doc(db, "users", user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setName(data.name || "");
+            setBio(data.bio || "");
+            setPrevImage(data.avatar || "");
           }
-          if (data.bio) {
-            setBio(data.bio);
-          }
-          if (data.avatar) {
-            setImage(data.avatar);
-          }
+        } catch (error) {
+          console.error("Profile data load error (update rules):", error);
         }
       } else {
-        // User is signed out, navigate to login page
         navigate("/");
-        console.log("User is signed out");
       }
     });
+    return unsubscribe;
   }, [navigate]);
 
   return (
