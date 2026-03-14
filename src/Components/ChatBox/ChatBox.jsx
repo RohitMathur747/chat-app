@@ -1,70 +1,96 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import "./ChatBox.css";
 import "../../index.css";
 import assets from "../../assets/assets";
 import { AppContext } from "../../Context/AppContext";
-import {
-  doc,
-  getDoc,
-  onSnapshot,
-  updateDoc,
-  arrayUnion,
-} from "firebase/firestore";
-import { db } from "../../config/firebase";
+import { messageAPI } from "../../config/api";
 import { toast } from "react-toastify";
+import uploadFile from "../../lib/upload";
 
 const ChatBox = () => {
-  const { userData, messagesId, chatUser, messages, setMessages } =
-    useContext(AppContext);
+  const {
+    userData,
+    messagesId: chatId,
+    chatUser,
+    messages,
+    setMessages,
+    socket,
+  } = useContext(AppContext);
   const [input, setInput] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [sending, setSending] = useState(false);
 
-  const sendMessage = async () => {
-    try {
-      if (input.trim() && messagesId) {
-        await updateDoc(doc(db, "messages", messagesId), {
-          messages: arrayUnion({
-            sId: userData.id,
-            text: input,
-            createdAt: new Date(),
-          }),
-        });
-
-        const userIDs = [chatUser.rId, userData.id];
-        userIDs.forEach(async (id) => {
-          const userChatsRef = doc(db, "chats", id);
-          const userChatsSnapshot = await getDoc(userChatsRef);
-          if (userChatsSnapshot.exists()) {
-            const userChatData = userChatsSnapshot.data();
-            const chatIndex = userChatData.chatsData.findIndex(
-              (c) => c.messageId === messagesId,
-            );
-            userChatData.chatsData[chatIndex].lastMessage = input;
-            userChatData.chatsData[chatIndex].updatedAt = Date.now();
-            if (userChatData.chatsData[chatIndex].rId === userData.id) {
-              userChatData.chatsData[chatIndex].messageSeen = false;
-            }
-            await updateDoc(userChatsRef, {
-              chatsData: userChatData.chatsData,
-            });
-          }
-        });
+  // Load initial messages
+  const loadMessages = useCallback(async () => {
+    if (chatId) {
+      try {
+        const response = await messageAPI.getMessages(chatId);
+        setMessages(response.data.reverse());
+      } catch (error) {
+        console.error("Load messages error:", error);
       }
-    } catch (error) {
-      toast.error(error.message);
     }
-    setInput("");
-  };
+  }, [chatId, setMessages]);
 
   useEffect(() => {
-    if (messagesId) {
-      const unSub = onSnapshot(doc(db, "messages", messagesId), (res) => {
-        setMessages(res.data().messages.reverse());
-      });
+    loadMessages();
+  }, [loadMessages]);
+
+  // Socket realtime
+  useEffect(() => {
+    if (socket && chatId) {
+      socket.emit("join-chat", chatId);
+      const handleReceiveMessage = (data) => {
+        setMessages((prev) => [data, ...prev]);
+      };
+      socket.on("receive-message", handleReceiveMessage);
       return () => {
-        unSub();
+        socket.off("receive-message", handleReceiveMessage);
       };
     }
-  }, [messagesId]);
+  }, [socket, chatId, setMessages]);
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (file && file.size > 5 * 1024 * 1024) {
+      toast.error("File too large (max 5MB)");
+      return;
+    }
+    setSelectedFile(file);
+  };
+
+  const sendMessage = async () => {
+    if (sending || !chatId) return;
+    setSending(true);
+
+    try {
+      let text = input.trim();
+      let image = null;
+
+      if (selectedFile) {
+        image = await uploadFile(selectedFile);
+      }
+
+      await messageAPI.sendMessage({ chatId, text, image });
+      // Backend handles DB + socket emit
+
+      setInput("");
+      setSelectedFile(null);
+      document.getElementById("img").value = "";
+    } catch (error) {
+      toast.error("Send failed");
+      console.error(error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const formatTime = (timestamp) => {
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return chatUser ? (
     <>
@@ -79,17 +105,16 @@ const ChatBox = () => {
         <div className="chat-msg">
           {messages.map((msg, idx) => {
             const isSender = msg.sId === userData.id;
-            const time = msg.createdAt
-              ? new Date(msg.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "Pending";
+            const time = formatTime(msg.createdAt);
             return (
               <div key={idx} className={isSender ? "s-msg" : "r-msg"}>
                 {!isSender && (
                   <img
-                    src={chatUser.userData.avatar}
+                    src={
+                      msg.sId === userData.id
+                        ? userData.avatar
+                        : chatUser.userData.avatar
+                    }
                     alt="profile"
                     className="icon"
                   />
@@ -112,14 +137,39 @@ const ChatBox = () => {
           <input
             type="text"
             onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && sendMessage()}
             value={input}
             placeholder="Type your message here..."
           />
-          <input type="file" id="img" accept="image/png,image/jpeg" hidden />
+          {selectedFile && (
+            <div className="file-preview">
+              <img
+                src={URL.createObjectURL(selectedFile)}
+                alt="Preview"
+                style={{ width: "50px", height: "50px", objectFit: "cover" }}
+              />
+              <span>{selectedFile.name}</span>
+            </div>
+          )}
+          <input
+            type="file"
+            id="img"
+            accept="image/png,image/jpeg"
+            hidden
+            onChange={handleFileSelect}
+          />
           <label htmlFor="img">
             <img src={assets.gallery_icon} alt="attach" />
           </label>
-          <img onClick={sendMessage} src={assets.send_button} alt="" />
+          <img
+            onClick={sendMessage}
+            src={assets.send_button}
+            alt="send"
+            style={{
+              opacity: sending ? 0.5 : 1,
+              cursor: sending ? "not-allowed" : "pointer",
+            }}
+          />
         </div>
       </div>
     </>

@@ -1,95 +1,65 @@
 import React, { useState, useEffect, useContext } from "react";
 import "./ProfileUpdate.css";
 import assets from "../../assets/assets";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth, db } from "../../config/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { useNavigate } from "react-router-dom";
+import { userAPI } from "../../config/api";
 import { toast } from "react-toastify";
-import upload from "../../lib/upload";
+import { useNavigate } from "react-router-dom";
+import uploadFile from "../../lib/upload";
 import { AppContext } from "../../Context/AppContext";
 
 const ProfileUpdate = () => {
   const navigate = useNavigate();
-
-  const [image, setImage] = useState(false);
+  const [image, setImage] = useState(null);
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
-  const [uid, setUid] = useState("");
   const [prevImage, setPrevImage] = useState("");
-  const { setUserData } = useContext(AppContext);
+  const [loading, setLoading] = useState(false);
+  const { userData, setUserData } = useContext(AppContext);
 
-  const ProfileUpdate = async (e) => {
+  const handleProfileUpdate = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       if (!prevImage && !image) {
         toast.error("Upload a profile image");
         return;
       }
-      const docRef = doc(db, "users", uid);
+      const updateData = { name, bio };
       if (image) {
-        const imgUrl = await upload(image);
-        setPrevImage(imgUrl);
-        await updateDoc(docRef, {
-          name,
-          bio,
-          avatar: imgUrl,
-        });
-        toast.success("Profile updated successfully");
-        navigate("/chat");
-      } else {
-        await updateDoc(docRef, {
-          name,
-          bio,
-        });
-        toast.success("Profile updated successfully");
-        navigate("/chat");
+        updateData.avatar = await uploadFile(image);
+        setPrevImage(updateData.avatar);
       }
-      const snap = await getDoc(docRef);
-      setUserData(snap.data());
+      await userAPI.updateUser(updateData);
+      toast.success("Profile updated successfully");
+      if (userData) {
+        setUserData({ ...userData, ...updateData });
+      }
       navigate("/chat");
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || "Update failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        console.log("User is signed in:", user);
-        setUid(user.uid);
-        // Removed duplicate getDoc - AppContext handles loadUserData
-        // Load local data only if exists (rules still needed)
-        try {
-          const docRef = doc(db, "users", user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setName(data.name || "");
-            setBio(data.bio || "");
-            setPrevImage(data.avatar || "");
-          }
-        } catch (error) {
-          console.error("Profile data load error (update rules):", error);
-        }
-      } else {
-        navigate("/");
-      }
-    });
-    return unsubscribe;
-  }, [navigate]);
+    if (userData) {
+      setName(userData.name || "");
+      setBio(userData.bio || "");
+      setPrevImage(userData.avatar || "");
+    }
+  }, [userData]);
 
   return (
     <>
       <div className="profile">
         <div className="profile-container">
-          <form onSubmit={ProfileUpdate}>
+          <form onSubmit={handleProfileUpdate}>
             <h3>Profile Details</h3>
             <label htmlFor="avatar">
               <input
                 type="file"
-                name=""
                 onChange={(e) => setImage(e.target.files[0])}
                 id="avatar"
                 accept=".png,.jpg,.jpeg"
@@ -119,8 +89,10 @@ const ProfileUpdate = () => {
               value={bio}
               placeholder="write the profile bio"
               required
-            ></textarea>
-            <button type="submit">Save</button>
+            />
+            <button type="submit" disabled={loading}>
+              {loading ? "Saving..." : "Save"}
+            </button>
           </form>
           <img
             className="profile-pic"

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import "./Login.css";
 import assets from "../../assets/assets";
-import { signup, login } from "../../config/firebase";
+import { authAPI } from "../../config/api";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 
@@ -20,14 +20,21 @@ const Login = () => {
     e.preventDefault();
     try {
       if (currState === "Sign Up") {
-        await signup(username, email, password);
+        const response = await authAPI.signup({ username, email, password });
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("userId", response.data.user.id);
+        toast.success("Account created! Complete profile.");
         navigate("/profile");
       } else {
-        await login(email, password);
+        const response = await authAPI.login({ email, password });
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("userId", response.data.user.id);
+        toast.success("Login successful!");
         navigate("/chat");
       }
     } catch (error) {
-      toast.error(error.message);
+      console.error(error);
+      toast.error(error.response?.data?.message || "Error occurred");
     }
   };
 
