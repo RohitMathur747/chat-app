@@ -1,9 +1,8 @@
-import { createContext, useEffect, useState } from "react";
-import { getDoc, doc, updateDoc } from "firebase/firestore";
+import { createContext, useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { db } from "../config/firebase";
-import { auth } from "../config/firebase";
-import { onSnapshot } from "firebase/firestore";
+import api, { authAPI, userAPI, chatAPI } from "../config/api";
+import { io } from "socket.io-client";
+import { toast } from "react-toastify";
 
 export const AppContext = createContext();
 
@@ -14,48 +13,76 @@ const AppContextProvider = (props) => {
   const [messagesId, setMessagesId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [chatUser, setChatUser] = useState(null);
+  const [socket, setSocket] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const loadUserData = async (uid) => {
-    try {
-      const userRef = doc(db, "users", uid);
-      const userSnap = await getDoc(userRef);
-      const userData = userSnap.data();
-      console.log(userData);
-      if (userData.avatar && userData.name) {
-        navigate("/chat");
-      } else {
-        navigate("/profile");
+  const loadUserData = useCallback(
+    async (userId) => {
+      const currentUserId = userId || localStorage.getItem("userId");
+      if (!currentUserId) {
+        localStorage.clear();
+        navigate("/");
+        return;
       }
-      await updateDoc(userRef, {
-        lastSeen: Date.now(),
-      });
-      setInterval(async () => {
-        if (auth.chatUser) {
-          await updateDoc(userRef, {
-            lastSeen: Date.now(),
-          });
+      try {
+        const response = await userAPI.getUserById(currentUserId);
+        const user = response.data;
+        console.log("User loaded:", user);
+        localStorage.setItem("userId", user.id);
+        setUserData(user);
+
+        if (user.avatar && user.name) {
+          navigate("/chat");
+        } else {
+          navigate("/profile");
         }
-      }, 60000); // Update lastSeen every minute
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-    }
-  };
+
+        // Update lastSeen interval
+        const interval = setInterval(async () => {
+          try {
+            await userAPI.updateUser({ lastSeen: Date.now() });
+          } catch (err) {
+            console.error("Last seen update failed:", err);
+          }
+        }, 60000);
+
+        return () => clearInterval(interval);
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        localStorage.clear();
+        navigate("/");
+      }
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
 
   useEffect(() => {
     if (userData) {
-      const chatRef = doc(db, "chats", userData.id);
-      const unSub = onSnapshot(chatRef, async (res) => {
-        const chatItems = res.data().chatData;
-        const tempData = [];
-        for (const item of chatItems) {
-          const userRef = doc(db, "users", item.rid);
-          const userSnap = await getDoc(userRef);
-          const userData = userSnap.data();
-          tempData.push({ ...item, userData });
+      // Load chats
+      const fetchChats = async () => {
+        try {
+          const response = await chatAPI.getChats(userData.id);
+          const chats = response.data;
+          // Assume backend returns chats with user data populated
+          setChatData(
+            chats.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)),
+          );
+        } catch (error) {
+          console.error("Error fetching chats:", error);
         }
-        setChatData(tempData.sort((a, b) => b.updateAt - a.updateAt));
-      });
-      return () => unSub();
+      };
+      fetchChats();
+
+      // Socket connection
+      const newSocket = io("http://localhost:5000");
+      newSocket.emit("add-user", userData.id);
+      setSocket(newSocket);
+
+      return () => newSocket.disconnect();
     }
   }, [userData]);
 
@@ -71,6 +98,7 @@ const AppContextProvider = (props) => {
     setMessagesId,
     chatUser,
     setChatUser,
+    socket,
   };
 
   return (

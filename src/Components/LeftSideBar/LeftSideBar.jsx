@@ -1,116 +1,76 @@
-import React from "react";
+import React, { useState, useContext } from "react";
 import "./LeftSideBar.css";
 import assets from "../../assets/assets";
 import { useNavigate } from "react-router-dom";
-import { logout } from "../../config/firebase";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  setDoc,
-  updateDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import { db } from "../../config/firebase";
-import { useState } from "react";
-import { useContext } from "react";
+import { authAPI } from "../../config/api";
+import { chatAPI } from "../../config/api";
 import { AppContext } from "../../Context/AppContext";
 import { toast } from "react-toastify";
-import { arrayUnion } from "firebase/firestore";
 
 const LeftSideBar = () => {
   const navigate = useNavigate();
-  const {
-    userData,
-    chatData,
-    chatUser,
-    setChatUser,
-    setMessagesId,
-    messagesId,
-  } = useContext(AppContext);
+  const { userData, chatData, setChatUser, setMessagesId } =
+    useContext(AppContext);
   const [user, setUser] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const inputHandler = async (e) => {
-    try {
-      const input = e.target.value;
-      if (input) {
+    const input = e.target.value;
+    setSearchQuery(input);
+    if (input) {
+      try {
         setShowSearch(true);
-        const userRef = collection(db, "users");
-        const q = query(userRef, where("name", "==", input.toLowerCase()));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty && querySnapshot.docs[0].id !== userData.uid) {
-          let userExists = false;
-          chatData.map((user) => {
-            if (user.rId === querySnapshot.docs[0].data().id) {
-              userExists = true;
-            }
-          });
+        const response = await chatAPI.search(input.toLowerCase());
+        const searchedUser = response.data;
+        if (searchedUser && searchedUser.id !== userData.id) {
+          // Check if already in chats
+          const userExists = chatData?.some((c) => c.rId === searchedUser.id);
           if (!userExists) {
-            setUser(querySnapshot.docs[0].data());
+            setUser(searchedUser);
+          } else {
+            setUser(null);
           }
         } else {
           setUser(null);
         }
-      } else {
-        setShowSearch(false);
+      } catch (error) {
+        console.error("Search error:", error);
+        setUser(null);
       }
-    } catch (error) {
-      console.error("Search error:", error);
+    } else {
+      setShowSearch(false);
+      setUser(null);
     }
   };
-
-  // const handleEditProfile = () => {
-  //   navigate("/profile");
-  // };
 
   const handleLogout = async () => {
     try {
-      await logout();
-      navigate("/");
+      await authAPI.logout();
+      toast.success("Logged out");
     } catch (error) {
       console.error("Logout error:", error);
     }
+    localStorage.clear();
+    navigate("/");
   };
 
   const addChat = async () => {
-    const messagesRef = collection(db, "messages");
-    const chatsRef = collection(db, "chats");
     try {
-      const newMessageRef = doc(messagesRef);
-      await setDoc(newMessageRef, {
-        createAt: serverTimestamp(),
-        messages: [],
-      });
-
-      await updateDoc(doc(chatsRef, user.id), {
-        chatData: arrayUnion({
-          messageId: newMessageRef.id,
-          lastMessage: "",
-          rId: userData.id,
-          updatedAt: Date.now(),
-          messageSeen: true,
-        }),
-      });
-
-      await updateDoc(doc(chatsRef, userData.uid), {
-        chatData: arrayUnion({
-          messageId: newMessageRef.id,
-          lastMessage: "",
-          rId: user.id,
-          updatedAt: Date.now(),
-          messageSeen: true,
-        }),
-      });
+      const response = await chatAPI.add({ rId: user.id });
+      const { messageId } = response.data;
+      // Refresh chats in context or refetch
+      toast.success("Chat started!");
+      setShowSearch(false);
+      setUser(null);
+      // Context will refetch or socket update
     } catch (error) {
-      toast.error(error.message);
+      toast.error("Failed to start chat");
       console.error(error);
     }
   };
 
-  const setChat = async (item) => {
+  const setChat = (item) => {
     setMessagesId(item.messageId);
     setChatUser(item);
   };
@@ -133,6 +93,7 @@ const LeftSideBar = () => {
           <img src={assets.search_icon} alt="search" className="search-icon" />
           <input
             type="text"
+            value={searchQuery}
             onChange={inputHandler}
             placeholder="Search Here.."
             className="search-input"
@@ -144,7 +105,11 @@ const LeftSideBar = () => {
           <div className="loading">Loading chats...</div>
         ) : showSearch && user ? (
           <div onClick={addChat} className="friends add-user">
-            <img src={user.avatar} alt="friends" className="icon" />
+            <img
+              src={user.avatar || assets.avatar_icon}
+              alt="friends"
+              className="icon"
+            />
             <p>{user.name}</p>
           </div>
         ) : (

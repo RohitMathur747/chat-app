@@ -1,14 +1,21 @@
 import React from "react";
 import "./RightSideBar.css";
 import assets from "../../assets/assets";
-import { logout } from "../../config/firebase";
+import { authAPI } from "../../config/api";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const RightSideBar = () => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout();
+    try {
+      await authAPI.logout();
+      toast.success("Logged out successfully");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+    localStorage.clear();
     navigate("/");
   };
 
